@@ -35,7 +35,10 @@ app.get('/chart', async (req, res) => {
     }
 });
 
-// For local dev
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
+// At the end of server.js
+module.exports = app;
+// Optionally, if running locally, you can still call app.listen when not in a Vercel environment:
+if (require.main === module) {
+    const PORT = process.env.PORT || 3000;
+    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+}
