@@ -2,32 +2,91 @@
 require('dotenv').config();
 const axios = require('axios');
 
+const GITHUB_GRAPHQL_API_URL = 'https://api.github.com/graphql';
+
 /**
- * Fetch aggregated language usage for a given GitHub user.
- * - Uses public-only data if no GITHUB_TOKEN is present.
- * - Includes private repos if GITHUB_TOKEN is present (with 'repo' scope).
+ * Query template for fetching up to 100 repos + their languages.
+ * We'll use variables: $login, $after for pagination.
+ */
+const REPOS_LANGUAGES_QUERY = `
+  query($login: String!, $after: String) {
+    user(login: $login) {
+      repositories(first: 100, after: $after, ownerAffiliations: [OWNER, COLLABORATOR], isFork: false) {
+        pageInfo {
+          endCursor
+          hasNextPage
+        }
+        nodes {
+          languages(first: 10, orderBy: { field: SIZE, direction: DESC }) {
+            edges {
+              size
+              node {
+                name
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+/**
+ * Fetch all repositories (in pages of 100) and sum up the language usage.
+ * - If GITHUB_TOKEN has 'repo' scope, includes private repos.
+ * - If not set, only public repos are returned.
  */
 async function fetchLanguageUsage(username) {
-    const headers = {};
-    if (process.env.GITHUB_TOKEN) {
-        headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
+    const token = process.env.GITHUB_TOKEN;
+    if (!token) {
+        console.warn('No GITHUB_TOKEN provided. Only public repos will be fetched, and rate limits may apply.');
     }
 
-    // Fetch up to 100 repos (add pagination if you have more).
-    const reposRes = await axios.get(
-        `https://api.github.com/users/${username}/repos?per_page=100`,
-        { headers }
-    );
-
+    // We'll accumulate language usage in totalLangs = { "JavaScript": 12345, "CSS": 6789, ... }
     const totalLangs = {};
-    for (const repo of reposRes.data) {
-        try {
-            const { data: languages } = await axios.get(repo.languages_url, { headers });
-            for (const [lang, bytes] of Object.entries(languages)) {
-                totalLangs[lang] = (totalLangs[lang] || 0) + bytes;
+    let hasNextPage = true;
+    let afterCursor = null;
+
+    while (hasNextPage) {
+        // 1) Make a single GraphQL request for the next page of repos
+        const { data } = await axios.post(
+            GITHUB_GRAPHQL_API_URL,
+            {
+                query: REPOS_LANGUAGES_QUERY,
+                variables: { login: username, after: afterCursor },
+            },
+            {
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`, // if token is undefined, request is still made but for public data only
+                },
             }
-        } catch (err) {
-            console.error(`Error fetching languages for repo ${repo.name}: ${err.message}`);
+        );
+
+        // 2) Check for errors
+        if (data.errors) {
+            console.error('GraphQL errors:', data.errors);
+            throw new Error('Error from GitHub GraphQL API');
+        }
+
+        const userData = data.data.user;
+        if (!userData) {
+            throw new Error(`User "${username}" not found or no access.`);
+        }
+
+        const repos = userData.repositories.nodes;
+        const pageInfo = userData.repositories.pageInfo;
+        hasNextPage = pageInfo.hasNextPage;
+        afterCursor = pageInfo.endCursor;
+
+        // 3) Aggregate language usage from each repo
+        for (const repo of repos) {
+            if (!repo.languages) continue;
+            for (const edge of repo.languages.edges) {
+                const langName = edge.node.name;
+                const size = edge.size;
+                totalLangs[langName] = (totalLangs[langName] || 0) + size;
+            }
         }
     }
 
