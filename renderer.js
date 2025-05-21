@@ -1,39 +1,44 @@
 const languageColors = {
-  JavaScript: '#f1e05a',
-  TypeScript: '#2b7489',
-  HTML: '#e34c26',
-  CSS: '#563d7c',
-  SCSS: '#c6538c',
-  Python: '#3572A5',
-  Java: '#b07219',
-  C: '#555555',
-  'C++': '#f34b7d',
-  'C#': '#178600',
-  Go: '#00ADD8',
-  PHP: '#4F5D95',
-  Ruby: '#701516',
-  Swift: '#ffac45',
-  Kotlin: '#A97BFF',
-  Dart: '#00B4AB',
-  Rust: '#dea584',
-  R: '#198CE7',
-  Scala: '#c22d40',
-  Shell: '#89e051',
+  JavaScript:    '#f1e05a',
+  TypeScript:    '#2b7489',
+  HTML:          '#e34c26',
+  CSS:           '#563d7c',
+  SCSS:          '#c6538c',
+  Python:        '#3572A5',
+  Java:          '#b07219',
+  C:             '#555555',
+  'C++':         '#f34b7d',
+  'C#':          '#178600',
+  Go:            '#00ADD8',
+  PHP:           '#777bb4',
+  Ruby:          '#cc342d',
+  Swift:         '#ffac45',
+  Kotlin:        '#F18E33',
+  Dart:          '#00B4AB',
+  Rust:          '#dea584',
+  R:             '#198CE7',
+  Scala:         '#c22d40',
+  Shell:         '#89e051',
   'Objective-C': '#438eff',
-  Perl: '#0298c3',
-  Lua: '#000080',
-  Haskell: '#5e5086',
-  Elixir: '#4e2a8e',
-  Clojure: '#db5855',
-  Groovy: '#4298b8',
-  CoffeeScript: '#244776',
-  Erlang: '#B83998',
-  OCaml: '#3be133',
-  PowerShell: '#012456',
-  Vimscript: '#199f4b',
-  Makefile: '#427819',
+  Perl:          '#0298c3',
+  Lua:           '#000080',
+  Haskell:       '#5e5086',
+  Elixir:        '#6e4a7e',
+  Clojure:       '#db5855',
+  Groovy:        '#4298b8',
+  CoffeeScript:  '#244776',
+  Erlang:        '#B83998',
+  OCaml:         '#3be133',
+  PowerShell:    '#012456',
+  Vimscript:     '#199f4b',
+  Makefile:      '#427819',
   // ... add or adjust as needed
+  Other:         '#cccccc' 
 };
+
+
+const MAX_SVG_WIDTH  = 500;
+const MAX_SVG_HEIGHT = 300;
 
 function getThemeColors(theme) {
   if (theme === 'dark') {
@@ -43,8 +48,8 @@ function getThemeColors(theme) {
   } else if (theme === 'solarized') {
     return { background: '#fdf6e3', textColor: '#657b83' };
   } else {
-    // default light theme
-    return { background: '#ffffff', textColor: '#333333' };
+        // default light theme
+        return { background: '#ffffff', textColor: '#333333' };
   }
 }
 
@@ -87,7 +92,7 @@ function createResponsiveSVG({ width, height, background, children }) {
 }
 
 /**
- * Prepare language data:
+ * Prepare language data (capped at 15):
  *  - Sum total bytes.
  *  - Sort descending.
  *  - Calculate fraction & percentage.
@@ -99,8 +104,10 @@ function prepareLangData(langs) {
 
   let entries = Object.entries(langs).sort((a, b) => b[1] - a[1]);
 
-  // Cap the number of items displayed; group extra languages into "Other"
-  const MAX_ITEMS = process.env.GRAPH_MAX_ITEMS || 6;
+  // Cap the number of items displayed (default: 6, max: 15); group extra languages into "Other"
+  const rawMax = parseInt(process.env.GRAPH_MAX_ITEMS, 10) || 6;
+  const MAX_ITEMS = Math.min(rawMax, 15);
+
   if (entries.length > MAX_ITEMS) {
     const top = entries.slice(0, MAX_ITEMS);
     const rest = entries.slice(MAX_ITEMS);
@@ -152,24 +159,32 @@ function appendStreak(width, height, textColor, streak) {
   return '';
 }
 
-// Layout Renderers
-/** 1) COMPACT LAYOUT: horizontal bars + text */
-function renderCompactChart(langData, theme, streak) {
-  const width = 500;
-  const height = 300;
-  const { background, textColor } = getThemeColors(theme);
+// --- Layout renderers with dynamic + clamped dimensions ---
 
+/** 1) Compact */
+function renderCompactChart(langData, theme, streak) {
+  const width = DEFAULT_WIDTH = 500;
+  const itemSpacing   = 30;
+  const headerHeight  = 60;
+  const bottomPadding = 30;
+  let height = headerHeight + langData.length * itemSpacing + bottomPadding;
+
+  // clamp
+  const w = Math.min(width, MAX_SVG_WIDTH);
+  const h = Math.min(height, MAX_SVG_HEIGHT);
+
+  const { background, textColor } = getThemeColors(theme);
   if (langData.length === 0) {
     return createResponsiveSVG({
-      width,
-      height,
+      width: w,
+      height: h,
       background,
-      children: noLangDataContent(width, height, textColor),
+      children: noLangDataContent(w, h, textColor),
     });
   }
 
   const maxBarWidth = 250;
-  const maxBytes = Math.max(...langData.map(d => d.bytes));
+  const maxBytes   = Math.max(...langData.map(d => d.bytes));
   let bars = `
     <text x="20" y="30" fill="${textColor}" font-size="20" font-family="sans-serif" font-weight="bold">
       Most Used Languages
@@ -184,25 +199,35 @@ function renderCompactChart(langData, theme, streak) {
       </text>
       <rect x="200" y="${offsetY}" width="${barWidth}" height="14" fill="${d.color}" rx="3" ry="3" />
     `;
-    offsetY += 30;
+    offsetY += itemSpacing;
   }
-  // Append activity streak (if provided) in the bottom right corner.
-  bars += appendStreak(width, height, textColor, streak);
-  return createResponsiveSVG({ width, height, background, children: bars });
+  bars += appendStreak(w, h, textColor, streak);
+
+  return createResponsiveSVG({ width: w, height: h, background, children: bars });
 }
 
-/** 2) DONUT LAYOUT (chart on the left, legend on the right) */
+/** 2) Donut (horizontal) */
 function renderDonutChart(langData, theme, streak) {
-  const width = 600;
-  const height = 300;
+  const baseWidth     = 600;
+  const legendStart   = 60;
+  const legendSpacing = 20;
+  const bottomPadding = 30;
+  let height = Math.max(
+    300,
+    legendStart + langData.length * legendSpacing + bottomPadding
+  );
+
+  const w = Math.min(baseWidth, MAX_SVG_WIDTH);
+  const h = Math.min(height, MAX_SVG_HEIGHT);
+
   const cx = 150;
-  const cy = height / 2;
+  const cy = h / 2;
   const outerRadius = 80;
   const strokeWidth = 25;
   const { background, textColor } = getThemeColors(theme);
 
   if (langData.length === 0) {
-    return createResponsiveSVG({ width, height, background, children: noLangDataContent(width, height, textColor) });
+    return createResponsiveSVG({ width: w, height: h, background, children: noLangDataContent(w, h, textColor) });
   }
 
   let startAngle = 0;
@@ -229,24 +254,34 @@ function renderDonutChart(langData, theme, streak) {
         ${d.lang} (${d.percentage}%)
       </text>
     `;
-    offsetY += 20;
+    offsetY += legendSpacing;
   }
-  const content = arcs + legend + appendStreak(width, height, textColor, streak);
-  return createResponsiveSVG({ width, height, background, children: content });
+  const content = arcs + legend + appendStreak(w, h, textColor, streak);
+  return createResponsiveSVG({ width: w, height: h, background, children: content });
 }
 
-/** 3) DONUT-VERTICAL LAYOUT (donut on top, legend below) */
+/** 3) Donut (vertical) */
 function renderDonutVerticalChart(langData, theme, streak) {
-  const width = 400;
-  const height = 350;
-  const cx = width / 2;
+  const baseWidth     = 400;
+  const legendStart   = 220;
+  const legendSpacing = 20;
+  const bottomPadding = 30;
+  let height = Math.max(
+    350,
+    legendStart + langData.length * legendSpacing + bottomPadding
+  );
+
+  const w = Math.min(baseWidth, MAX_SVG_WIDTH);
+  const h = Math.min(height, MAX_SVG_HEIGHT);
+
+  const cx = w / 2;
   const cy = 120;
   const outerRadius = 80;
   const strokeWidth = 25;
   const { background, textColor } = getThemeColors(theme);
 
   if (langData.length === 0) {
-    return createResponsiveSVG({ width, height, background, children: noLangDataContent(width, height, textColor) });
+    return createResponsiveSVG({ width: w, height: h, background, children: noLangDataContent(w, h, textColor) });
   }
 
   let startAngle = 0;
@@ -264,7 +299,7 @@ function renderDonutVerticalChart(langData, theme, streak) {
   }
 
   let legend = '';
-  let offsetY = 220;
+  let offsetY = legendStart;
   const legendX = 40;
   for (const d of langData) {
     legend += `
@@ -273,23 +308,33 @@ function renderDonutVerticalChart(langData, theme, streak) {
         ${d.lang} (${d.percentage}%)
       </text>
     `;
-    offsetY += 20;
+    offsetY += legendSpacing;
   }
-  const content = arcs + legend + appendStreak(width, height, textColor, streak);
-  return createResponsiveSVG({ width, height, background, children: content });
+  const content = arcs + legend + appendStreak(w, h, textColor, streak);
+  return createResponsiveSVG({ width: w, height: h, background, children: content });
 }
 
-/** 4) PIE CHART LAYOUT (filled wedges, legend on the right) */
+/** 4) Pie */
 function renderPieChart(langData, theme, streak) {
-  const width = 600;
-  const height = 300;
+  const baseWidth     = 600;
+  const legendStart   = 60;
+  const legendSpacing = 20;
+  const bottomPadding = 30;
+  let height = Math.max(
+    300,
+    legendStart + langData.length * legendSpacing + bottomPadding
+  );
+
+  const w = Math.min(baseWidth, MAX_SVG_WIDTH);
+  const h = Math.min(height, MAX_SVG_HEIGHT);
+
   const cx = 150;
-  const cy = 150;
+  const cy = h / 2;
   const r = 100;
   const { background, textColor } = getThemeColors(theme);
 
   if (langData.length === 0) {
-    return createResponsiveSVG({ width, height, background, children: noLangDataContent(width, height, textColor) });
+    return createResponsiveSVG({ width: w, height: h, background, children: noLangDataContent(w, h, textColor) });
   }
 
   let startAngle = 0;
@@ -317,7 +362,7 @@ function renderPieChart(langData, theme, streak) {
   }
 
   let legend = '';
-  let offsetY = 60;
+  let offsetY = legendStart;
   const legendX = 320;
   for (const d of langData) {
     legend += `
@@ -326,36 +371,43 @@ function renderPieChart(langData, theme, streak) {
         ${d.lang} (${d.percentage}%)
       </text>
     `;
-    offsetY += 20;
+    offsetY += legendSpacing;
   }
-  const content = wedges + legend + appendStreak(width, height, textColor, streak);
-  return createResponsiveSVG({ width, height, background, children: content });
+  const content = wedges + legend + appendStreak(w, h, textColor, streak);
+  return createResponsiveSVG({ width: w, height: h, background, children: content });
 }
 
-/** 5) HIDDEN BARS LAYOUT (text list only) */
+/** 5) Hidden bars */
 function renderHiddenBarsChart(langData, theme, streak) {
-  const width = 500;
-  const height = 300;
+  const width        = 500;
+  const itemSpacing  = 20;
+  const headerHeight = 60;
+  const bottomPad    = 30;
+  let height = headerHeight + langData.length * itemSpacing + bottomPad;
+
+  const w = Math.min(width, MAX_SVG_WIDTH);
+  const h = Math.min(height, MAX_SVG_HEIGHT);
+
   const { background, textColor } = getThemeColors(theme);
   if (langData.length === 0) {
-    return createResponsiveSVG({ width, height, background, children: noLangDataContent(width, height, textColor) });
+    return createResponsiveSVG({ width: w, height: h, background, children: noLangDataContent(w, h, textColor) });
   }
   let items = `
     <text x="20" y="30" fill="${textColor}" font-size="20" font-family="sans-serif" font-weight="bold">
       Most Used Languages
     </text>
   `;
-  let offsetY = 60;
+  let offsetY = headerHeight;
   for (const d of langData) {
     items += `
       <text x="20" y="${offsetY}" fill="${textColor}" font-size="14" font-family="sans-serif">
         • ${d.lang} (${d.percentage}%)
       </text>
     `;
-    offsetY += 20;
+    offsetY += itemSpacing;
   }
-  items += appendStreak(width, height, textColor, streak);
-  return createResponsiveSVG({ width, height, background, children: items });
+  items += appendStreak(w, h, textColor, streak);
+  return createResponsiveSVG({ width: w, height: h, background, children: items });
 }
 
 /**
@@ -368,20 +420,20 @@ function renderHiddenBarsChart(langData, theme, streak) {
 function renderChart(langs, layout, theme, streak) {
   const langData = prepareLangData(langs);
   switch (layout) {
-    case 'donut':
-      return renderDonutChart(langData, theme, streak);
-    case 'donut-vertical':
-      return renderDonutVerticalChart(langData, theme, streak);
-    case 'pie':
-      return renderPieChart(langData, theme, streak);
-    case 'hidden':
-      return renderHiddenBarsChart(langData, theme, streak);
+    case 'donut':           
+    return renderDonutChart(langData, theme, streak);
+    case 'donut-vertical':  
+    return renderDonutVerticalChart(langData, theme, streak);
+    case 'pie':             
+    return renderPieChart(langData, theme, streak);
+    case 'hidden':          
+    return renderHiddenBarsChart(langData, theme, streak);
     case 'compact':
-    default:
-      return renderCompactChart(langData, theme, streak);
+    default:                
+    return renderCompactChart(langData, theme, streak);
   }
 }
 
-module.exports = {
-  renderChart
+module.exports = { 
+  renderChart 
 };
