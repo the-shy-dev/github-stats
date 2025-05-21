@@ -1,8 +1,3 @@
-// renderer.js
-
-// -----------------------------------------------------
-// 1. Expanded language color map
-// -----------------------------------------------------
 const languageColors = {
   JavaScript: '#f1e05a',
   TypeScript: '#2b7489',
@@ -40,9 +35,6 @@ const languageColors = {
   // ... add or adjust as needed
 };
 
-// -----------------------------------------------------
-// 2. Theme helper: get background and text color based on theme
-// -----------------------------------------------------
 function getThemeColors(theme) {
   if (theme === 'dark') {
     return { background: '#0d1117', textColor: '#c9d1d9' };
@@ -56,10 +48,7 @@ function getThemeColors(theme) {
   }
 }
 
-// -----------------------------------------------------
-// 3. Utility functions
-// -----------------------------------------------------
-
+// Utility functions
 /** Convert degrees to radians */
 function deg2rad(deg) {
   return (deg * Math.PI) / 180;
@@ -111,7 +100,7 @@ function prepareLangData(langs) {
   let entries = Object.entries(langs).sort((a, b) => b[1] - a[1]);
 
   // Cap the number of items displayed; group extra languages into "Other"
-  const MAX_ITEMS = 6;
+  const MAX_ITEMS = process.env.GRAPH_MAX_ITEMS || 6;
   if (entries.length > MAX_ITEMS) {
     const top = entries.slice(0, MAX_ITEMS);
     const rest = entries.slice(MAX_ITEMS);
@@ -163,10 +152,7 @@ function appendStreak(width, height, textColor, streak) {
   return '';
 }
 
-// -----------------------------------------------------
-// 4. Layout Renderers (each now accepts an extra parameter: streak)
-// -----------------------------------------------------
-
+// Layout Renderers
 /** 1) COMPACT LAYOUT: horizontal bars + text */
 function renderCompactChart(langData, theme, streak) {
   const width = 500;
@@ -372,9 +358,6 @@ function renderHiddenBarsChart(langData, theme, streak) {
   return createResponsiveSVG({ width, height, background, children: items });
 }
 
-// -----------------------------------------------------
-// 5. Main Render Function
-// -----------------------------------------------------
 /**
  * renderChart now accepts four parameters:
  *   - langs: language usage object (from fetcher)
