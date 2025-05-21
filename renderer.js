@@ -98,16 +98,11 @@ function createResponsiveSVG({ width, height, background, children }) {
  *  - Calculate fraction & percentage.
  *  - If too many items, group the extras into "Other".
  */
-function prepareLangData(langs) {
+function prepareLangData(langs, MAX_ITEMS) {
   const total = Object.values(langs).reduce((a, b) => a + b, 0);
   if (total === 0) return [];
 
   let entries = Object.entries(langs).sort((a, b) => b[1] - a[1]);
-
-  // Cap the number of items displayed (default: 6, max: 15); group extra languages into "Other"
-  const rawMax = parseInt(process.env.GRAPH_MAX_ITEMS, 10) || 6;
-  const MAX_ITEMS = Math.min(rawMax, 15);
-
   if (entries.length > MAX_ITEMS) {
     const top = entries.slice(0, MAX_ITEMS);
     const rest = entries.slice(MAX_ITEMS);
@@ -417,20 +412,22 @@ function renderHiddenBarsChart(langData, theme, streak) {
  *   - theme: one of 'light', 'dark', 'blue', or 'solarized'
  *   - streak: (optional) activity streak (number of consecutive days)
  */
-function renderChart(langs, layout, theme, streak) {
-  const langData = prepareLangData(langs);
+function renderChart(langs, layout, theme, streak, max_items) {
+  // Cap the number of items displayed (default: 6, max: 15); group extra languages into "Other"
+  const MAX_ITEMS = Math.min(max_items, 15);
+  const langData = prepareLangData(langs, MAX_ITEMS);
   switch (layout) {
     case 'donut':           
-    return renderDonutChart(langData, theme, streak);
+    return renderDonutChart(langData, theme, streak, MAX_ITEMS);
     case 'donut-vertical':  
-    return renderDonutVerticalChart(langData, theme, streak);
+    return renderDonutVerticalChart(langData, theme, streak, MAX_ITEMS);
     case 'pie':             
-    return renderPieChart(langData, theme, streak);
+    return renderPieChart(langData, theme, streak, MAX_ITEMS);
     case 'hidden':          
-    return renderHiddenBarsChart(langData, theme, streak);
+    return renderHiddenBarsChart(langData, theme, streak, MAX_ITEMS);
     case 'compact':
     default:                
-    return renderCompactChart(langData, theme, streak);
+    return renderCompactChart(langData, theme, streak, MAX_ITEMS);
   }
 }
 
