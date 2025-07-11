@@ -1,3 +1,5 @@
+const config = require('./config');
+
 const languageColors = {
   JavaScript:    '#f1e05a',
   TypeScript:    '#2b7489',
@@ -37,8 +39,8 @@ const languageColors = {
 };
 
 
-const MAX_SVG_WIDTH  = 500;
-const MAX_SVG_HEIGHT = 300;
+const MAX_SVG_WIDTH  = config.MAX_SVG_WIDTH;
+const MAX_SVG_HEIGHT = config.MAX_SVG_HEIGHT;
 
 function getThemeColors(theme) {
   if (theme === 'dark') {
@@ -64,8 +66,8 @@ function deg2rad(deg) {
  */
 function noLangDataContent(width, height, textColor) {
   return `
-    <text x="${width / 2}" y="${height / 2}" fill="${textColor}" font-size="16"
-      text-anchor="middle" alignment-baseline="middle">
+    <text x="${width / 2}" y="${height / 2}" fill="${textColor}" font-size="${config.FONT_SIZE_HEADER}"
+      text-anchor="middle" alignment-baseline="middle" font-family="${config.FONT_FAMILY}">
       No languages found
     </text>
   `;
@@ -81,9 +83,11 @@ function createResponsiveSVG({ width, height, background, children }) {
   return `
     <svg
       viewBox="0 0 ${width} ${height}"
-      style="max-width: 100%; height: auto;"
+      style="max-width: 100%; height: auto; font-family: ${config.FONT_FAMILY};"
       preserveAspectRatio="xMidYMid meet"
       xmlns="http://www.w3.org/2000/svg"
+      role="img"
+      aria-label="GitHub Language Chart"
     >
       <rect width="100%" height="100%" fill="${background}" />
       ${children}
@@ -146,7 +150,7 @@ function arcPath(cx, cy, r, startAngle, endAngle) {
 function appendStreak(width, height, textColor, streak) {
   if (streak && Number(streak) > 0) {
     return `
-      <text x="${width - 10}" y="${height - 10}" fill="${textColor}" font-size="12" text-anchor="end" font-family="sans-serif">
+      <text x="${width - 10}" y="${height - 10}" fill="${textColor}" font-size="${config.FONT_SIZE_STREAK}" text-anchor="end" font-family="${config.FONT_FAMILY}">
         Activity Streak: ${streak} days
       </text>
     `;
@@ -158,10 +162,10 @@ function appendStreak(width, height, textColor, streak) {
 
 /** 1) Compact */
 function renderCompactChart(langData, theme, streak) {
-  const width = DEFAULT_WIDTH = 500;
-  const itemSpacing   = 30;
-  const headerHeight  = 60;
-  const bottomPadding = 30;
+  const width = 500;
+  const itemSpacing   = config.ITEM_SPACING;
+  const headerHeight  = config.HEADER_HEIGHT;
+  const bottomPadding = config.BOTTOM_PADDING;
   let height = headerHeight + langData.length * itemSpacing + bottomPadding;
 
   // clamp
@@ -181,18 +185,18 @@ function renderCompactChart(langData, theme, streak) {
   const maxBarWidth = 250;
   const maxBytes   = Math.max(...langData.map(d => d.bytes));
   let bars = `
-    <text x="20" y="30" fill="${textColor}" font-size="20" font-family="sans-serif" font-weight="bold">
+    <text x="20" y="35" fill="${textColor}" font-size="${config.FONT_SIZE_HEADER}" font-family="${config.FONT_FAMILY}" font-weight="${config.FONT_WEIGHT_HEADER}">
       Most Used Languages
     </text>
   `;
-  let offsetY = 60;
+  let offsetY = headerHeight;
   for (const d of langData) {
     const barWidth = (d.bytes / maxBytes) * maxBarWidth;
     bars += `
-      <text x="20" y="${offsetY + 14}" fill="${textColor}" font-size="14" font-family="sans-serif">
+      <text x="20" y="${offsetY + 14}" fill="${textColor}" font-size="${config.FONT_SIZE_LABEL}" font-family="${config.FONT_FAMILY}" font-weight="${config.FONT_WEIGHT_LABEL}">
         ${d.lang} (${d.percentage}%)
       </text>
-      <rect x="200" y="${offsetY}" width="${barWidth}" height="14" fill="${d.color}" rx="3" ry="3" />
+      <rect x="200" y="${offsetY}" width="${barWidth}" height="${config.BAR_HEIGHT}" fill="${d.color}" rx="${config.BAR_RADIUS}" ry="${config.BAR_RADIUS}" />
     `;
     offsetY += itemSpacing;
   }
@@ -204,9 +208,9 @@ function renderCompactChart(langData, theme, streak) {
 /** 2) Donut (horizontal) */
 function renderDonutChart(langData, theme, streak) {
   const baseWidth     = 600;
-  const legendStart   = 60;
-  const legendSpacing = 20;
-  const bottomPadding = 30;
+  const legendStart   = config.LEGEND_START;
+  const legendSpacing = config.LEGEND_SPACING;
+  const bottomPadding = config.BOTTOM_PADDING;
   let height = Math.max(
     300,
     legendStart + langData.length * legendSpacing + bottomPadding
@@ -217,8 +221,8 @@ function renderDonutChart(langData, theme, streak) {
 
   const cx = 150;
   const cy = h / 2;
-  const outerRadius = 80;
-  const strokeWidth = 25;
+  const outerRadius = config.DONUT_OUTER_RADIUS;
+  const strokeWidth = config.DONUT_STROKE_WIDTH;
   const { background, textColor } = getThemeColors(theme);
 
   if (langData.length === 0) {
@@ -227,7 +231,7 @@ function renderDonutChart(langData, theme, streak) {
 
   let startAngle = 0;
   let arcs = `
-    <text x="20" y="30" fill="${textColor}" font-size="20" font-family="sans-serif" font-weight="bold">
+    <text x="20" y="35" fill="${textColor}" font-size="${config.FONT_SIZE_HEADER}" font-family="${config.FONT_FAMILY}" font-weight="${config.FONT_WEIGHT_HEADER}">
       Most Used Languages
     </text>
   `;
@@ -240,12 +244,12 @@ function renderDonutChart(langData, theme, streak) {
   }
 
   let legend = '';
-  let offsetY = 60;
+  let offsetY = legendStart;
   const legendX = 320;
   for (const d of langData) {
     legend += `
       <circle cx="${legendX}" cy="${offsetY}" r="5" fill="${d.color}" />
-      <text x="${legendX + 12}" y="${offsetY + 4}" fill="${textColor}" font-size="14" font-family="sans-serif">
+      <text x="${legendX + 12}" y="${offsetY + 4}" fill="${textColor}" font-size="${config.FONT_SIZE_LABEL}" font-family="${config.FONT_FAMILY}">
         ${d.lang} (${d.percentage}%)
       </text>
     `;
@@ -281,7 +285,7 @@ function renderDonutVerticalChart(langData, theme, streak) {
 
   let startAngle = 0;
   let arcs = `
-    <text x="20" y="30" fill="${textColor}" font-size="20" font-family="sans-serif" font-weight="bold">
+    <text x="20" y="35" fill="${textColor}" font-size="${config.FONT_SIZE_HEADER}" font-family="${config.FONT_FAMILY}" font-weight="${config.FONT_WEIGHT_HEADER}">
       Most Used Languages
     </text>
   `;
@@ -299,7 +303,7 @@ function renderDonutVerticalChart(langData, theme, streak) {
   for (const d of langData) {
     legend += `
       <circle cx="${legendX}" cy="${offsetY}" r="5" fill="${d.color}" />
-      <text x="${legendX + 12}" y="${offsetY + 4}" fill="${textColor}" font-size="14" font-family="sans-serif">
+      <text x="${legendX + 12}" y="${offsetY + 4}" fill="${textColor}" font-size="${config.FONT_SIZE_LABEL}" font-family="${config.FONT_FAMILY}">
         ${d.lang} (${d.percentage}%)
       </text>
     `;
@@ -334,7 +338,7 @@ function renderPieChart(langData, theme, streak) {
 
   let startAngle = 0;
   let wedges = `
-    <text x="20" y="30" fill="${textColor}" font-size="20" font-family="sans-serif" font-weight="bold">
+    <text x="20" y="35" fill="${textColor}" font-size="${config.FONT_SIZE_HEADER}" font-family="${config.FONT_FAMILY}" font-weight="${config.FONT_WEIGHT_HEADER}">
       Most Used Languages
     </text>
   `;
@@ -362,7 +366,7 @@ function renderPieChart(langData, theme, streak) {
   for (const d of langData) {
     legend += `
       <circle cx="${legendX}" cy="${offsetY}" r="5" fill="${d.color}" />
-      <text x="${legendX + 12}" y="${offsetY + 4}" fill="${textColor}" font-size="14" font-family="sans-serif">
+      <text x="${legendX + 12}" y="${offsetY + 4}" fill="${textColor}" font-size="${config.FONT_SIZE_LABEL}" font-family="${config.FONT_FAMILY}">
         ${d.lang} (${d.percentage}%)
       </text>
     `;
@@ -388,14 +392,14 @@ function renderHiddenBarsChart(langData, theme, streak) {
     return createResponsiveSVG({ width: w, height: h, background, children: noLangDataContent(w, h, textColor) });
   }
   let items = `
-    <text x="20" y="30" fill="${textColor}" font-size="20" font-family="sans-serif" font-weight="bold">
+    <text x="20" y="35" fill="${textColor}" font-size="${config.FONT_SIZE_HEADER}" font-family="${config.FONT_FAMILY}" font-weight="${config.FONT_WEIGHT_HEADER}">
       Most Used Languages
     </text>
   `;
   let offsetY = headerHeight;
   for (const d of langData) {
     items += `
-      <text x="20" y="${offsetY}" fill="${textColor}" font-size="14" font-family="sans-serif">
+      <text x="20" y="${offsetY}" fill="${textColor}" font-size="${config.FONT_SIZE_LABEL}" font-family="${config.FONT_FAMILY}" font-weight="${config.FONT_WEIGHT_LABEL}">
         • ${d.lang} (${d.percentage}%)
       </text>
     `;
