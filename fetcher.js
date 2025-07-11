@@ -3,6 +3,7 @@ require('dotenv').config();
 const axios = require('axios');
 
 const GITHUB_GRAPHQL_API_URL = 'https://api.github.com/graphql';
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN; // Cache token
 
 // Query to fetch repositories and their languages (paginated)
 const REPOS_LANGUAGES_QUERY = `
@@ -51,10 +52,9 @@ const CONTRIBUTIONS_QUERY = `
  * Aggregates language sizes from all pages.
  */
 async function fetchLanguages(username) {
-    const token = process.env.GITHUB_TOKEN;
     const headers = { 'Content-Type': 'application/json' };
-    if (token) {
-        headers.Authorization = `Bearer ${token}`;
+    if (GITHUB_TOKEN) {
+        headers.Authorization = `Bearer ${GITHUB_TOKEN}`;
     }
     let totalLangs = {};
     let hasNextPage = true;
@@ -137,10 +137,9 @@ function computeCurrentStreak(weeks) {
  * Fetch contributions data and compute the activity streak.
  */
 async function fetchContributions(username) {
-    const token = process.env.GITHUB_TOKEN;
     const headers = { 'Content-Type': 'application/json' };
-    if (token) {
-        headers.Authorization = `Bearer ${token}`;
+    if (GITHUB_TOKEN) {
+        headers.Authorization = `Bearer ${GITHUB_TOKEN}`;
     }
     const response = await axios.post(
         GITHUB_GRAPHQL_API_URL,
@@ -166,14 +165,19 @@ async function fetchContributions(username) {
  * Fetch user data: languages usage and activity streak.
  */
 async function fetchUserData(username) {
-    const languages = await fetchLanguages(username);
-    let streak = 0;
-    try {
-        streak = await fetchContributions(username);
-    } catch (e) {
-        console.warn('Could not fetch contributions streak:', e.message);
-    }
-    return { languages, streak };
+    // Run both fetches in parallel for performance
+    const [languages, streakResult] = await Promise.all([
+        fetchLanguages(username),
+        (async () => {
+            try {
+                return await fetchContributions(username);
+            } catch (e) {
+                console.warn('Could not fetch contributions streak:', e.message);
+                return 0;
+            }
+        })()
+    ]);
+    return { languages, streak: streakResult };
 }
 
 module.exports = {

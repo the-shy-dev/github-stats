@@ -12,7 +12,7 @@ app.get('/summary', async (req, res) => {
     const username = req.query.username || 'the-shy-dev';
     const layout = req.query.layout || 'compact';
     const theme = req.query.theme || 'light';
-    const max_items = req.query.max_items || 6;
+    const max_items = Number(req.query.max_items) || 6;
     try {
         // Fetch both language usage and activity streak
         const { languages, streak } = await fetchUserData(username);
